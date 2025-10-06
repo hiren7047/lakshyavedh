@@ -7,10 +7,6 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -22,10 +18,5 @@
       "src": "/(.*)",
       "dest": "/client/dist/index.html"
     }
-  ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
