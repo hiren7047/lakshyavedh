@@ -110,18 +110,20 @@ app.delete('/api/games', async (req, res) => {
   }
 });
 
-// Serve client build if exists
-const clientBuild = path.join(__dirname, '../../client/dist');
-app.use(express.static(clientBuild));
-
-// Catch-all handler for client-side routing
-app.use((req, res) => {
-  try {
-    res.sendFile(path.join(clientBuild, 'index.html'));
-  } catch {
-    res.status(404).send('Client not built');
-  }
-});
+// Serve client build if exists (for local development)
+if (process.env.NODE_ENV !== 'production') {
+  const clientBuild = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientBuild));
+  
+  // Catch-all handler for client-side routing (local dev only)
+  app.use((req, res) => {
+    try {
+      res.sendFile(path.join(clientBuild, 'index.html'));
+    } catch {
+      res.status(404).send('Client not built');
+    }
+  });
+}
 
 const PORT=process.env.PORT||5000;
 app.listen(PORT,()=>console.log('server on '+PORT));

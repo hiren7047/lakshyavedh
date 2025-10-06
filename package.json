@@ -1,0 +1,17 @@
+{
+  "name": "target-shooting-game",
+  "version": "1.0.0",
+  "description": "Target Shooting Game - Full Stack Application",
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && npm install && npm start",
+    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\"",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

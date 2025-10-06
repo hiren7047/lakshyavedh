@@ -31,7 +31,7 @@ export type Game = {
   };
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // API helper functions
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
