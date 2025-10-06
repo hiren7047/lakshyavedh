@@ -1,0 +1,38 @@
+{
+  "games": [
+    {
+      "id": "131d85f4-47a6-457e-a7e1-3ffac3fc5cfe",
+      "name": "Target Shooting - Fire Room",
+      "players": [
+        {
+          "id": "p1",
+          "name": "Player 1"
+        },
+        {
+          "id": "p2",
+          "name": "Player 2"
+        },
+        {
+          "id": "p3",
+          "name": "Player 3"
+        },
+        {
+          "id": "p4",
+          "name": "Player 4"
+        },
+        {
+          "id": "p5",
+          "name": "Player 5"
+        }
+      ],
+      "createdAt": 1759754983675,
+      "scores": [],
+      "status": "room1",
+      "roomCompletion": {
+        "room1": false,
+        "room2": false,
+        "room3": false
+      }
+    }
+  ]
+}

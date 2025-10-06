@@ -1,0 +1,17 @@
+{
+  "name": "target-shooting-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Target Shooting Game",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5"
+  }
+}
