@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { useAuthStore } from "../store/auth";
 
@@ -133,7 +133,7 @@ function ObjectButton({
 
 export default function GameScreen() {
   const { gameId } = useParams<{ gameId: string }>();
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed unused variable
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -208,6 +208,7 @@ export default function GameScreen() {
   }
 
   function totalFor(playerId: string, roomId?: RoomId) {
+    if (!game) return 0;
     const relevant = game.scores.filter(
       (s) => s.playerId === playerId && (!roomId || s.roomId === roomId)
     );
@@ -344,7 +345,7 @@ export default function GameScreen() {
             </div>
           )}
 
-          {canAccessCurrentRoom && game.status !== "completed" && (
+          {canAccessCurrentRoom && game && (game.status === "room1" || game.status === "room2" || game.status === "room3") && (
             <div className="grid gap-6">
               {/* Object Buttons - Responsive grid layout: 3 players first row, 2 players second row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

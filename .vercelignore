@@ -1,0 +1,10 @@
+node_modules
+server
+.git
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+start-dev.bat
+start-dev.sh
