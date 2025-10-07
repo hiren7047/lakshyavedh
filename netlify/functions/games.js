@@ -33,13 +33,15 @@ async function writeDB(data) {
 
 // Netlify Functions handler
 exports.handler = async (event, context) => {
+  console.log('Games function called:', event.httpMethod, event.path);
+  
   const { httpMethod, body, queryStringParameters } = event;
   
   // CORS headers
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
   };
 
@@ -59,14 +61,17 @@ exports.handler = async (event, context) => {
       try {
         requestBody = JSON.parse(body);
       } catch (e) {
-        // Ignore parsing errors for empty bodies
+        console.log('Body parsing error:', e);
       }
     }
+
+    console.log('Request body:', requestBody);
 
     // Route handling
     if (httpMethod === 'GET') {
       const db = await readDB();
       const games = db.games.sort((a, b) => b.createdAt - a.createdAt);
+      console.log('Returning games:', games.length);
       return {
         statusCode: 200,
         headers,
@@ -90,6 +95,7 @@ exports.handler = async (event, context) => {
       };
       db.games.push(game);
       await writeDB(db);
+      console.log('Created game:', game.id);
       return {
         statusCode: 200,
         headers,
@@ -99,6 +105,7 @@ exports.handler = async (event, context) => {
 
     if (httpMethod === 'DELETE') {
       await writeDB({ games: [] });
+      console.log('Cleared all games');
       return {
         statusCode: 200,
         headers,
@@ -107,6 +114,7 @@ exports.handler = async (event, context) => {
     }
 
     // 404 for unmatched routes
+    console.log('Method not allowed:', httpMethod);
     return {
       statusCode: 404,
       headers,
@@ -118,7 +126,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ error: 'Internal server error', details: error.message })
     };
   }
 };
