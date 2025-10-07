@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: target-shooting-game
+    env: node
+    buildCommand: npm run build
+    startCommand: cd server && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
