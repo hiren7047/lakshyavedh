@@ -6,8 +6,25 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 
 const app = express();
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'https://lakshyavedha.netlify.app',
+    'https://*.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // Database file path (Vercel uses /tmp for writable storage)
 const DB_FILE = '/tmp/games.json';
