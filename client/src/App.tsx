@@ -31,18 +31,31 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-yellow-50">
       <Routes>
+        {/* Root redirect */}
         <Route path="/" element={<Navigate to="/login" replace />} />
+        
+        {/* Authentication */}
         <Route path="/login" element={<Login />} />
+        
+        {/* Main Dashboard Routes */}
         <Route 
           path="/dashboard" 
           element={currentUser ? <Dashboard /> : <Navigate to="/login" replace />}
         >
+          {/* Dashboard Home - Games List */}
           <Route index element={<GamesList />} />
+          
+          {/* Games Management */}
           <Route path="games" element={<GamesList />} />
           <Route path="games/new" element={<NewGame />} />
           <Route path="games/:gameId" element={<GameScreen />} />
+          
+          {/* Leaderboard */}
           <Route path="leaderboard" element={<Leaderboard />} />
         </Route>
+        
+        {/* Catch all - redirect to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </div>
   )

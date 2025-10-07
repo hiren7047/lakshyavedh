@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "tsc && vite build && cp -r dist/* ../",
+    "build": "tsc && vite build",
     "dev": "vite",
     "preview": "vite preview",
     "vercel-build": "npm run build"
