@@ -5,6 +5,9 @@
 [build.environment]
   NODE_VERSION = "18"
 
+[functions]
+  directory = "functions"
+
 [[redirects]]
   from = "/api/games"
   to = "/.netlify/functions/games"
@@ -19,8 +22,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  external_node_modules = ["fs", "crypto"]
