@@ -26,10 +26,161 @@
         }
       ],
       "createdAt": 1759754983675,
-      "scores": [],
-      "status": "room1",
+      "scores": [
+        {
+          "playerId": "p1",
+          "roomId": 1,
+          "entries": [
+            {
+              "objectIndex": 22,
+              "points": 2000
+            },
+            {
+              "objectIndex": 15,
+              "points": 2000
+            },
+            {
+              "objectIndex": 8,
+              "points": 2000
+            },
+            {
+              "objectIndex": 25,
+              "points": 3000
+            }
+          ]
+        },
+        {
+          "playerId": "p2",
+          "roomId": 1,
+          "entries": [
+            {
+              "objectIndex": 5,
+              "points": 3000
+            },
+            {
+              "objectIndex": 23,
+              "points": 2000
+            },
+            {
+              "objectIndex": 22,
+              "points": 2000
+            },
+            {
+              "objectIndex": 20,
+              "points": 200
+            },
+            {
+              "objectIndex": 33,
+              "points": 200
+            }
+          ]
+        },
+        {
+          "playerId": "p3",
+          "roomId": 1,
+          "entries": [
+            {
+              "objectIndex": 30,
+              "points": 2000
+            },
+            {
+              "objectIndex": 13,
+              "points": 100
+            },
+            {
+              "objectIndex": 14,
+              "points": 3000
+            },
+            {
+              "objectIndex": 7,
+              "points": 3000
+            },
+            {
+              "objectIndex": 18,
+              "points": 200
+            },
+            {
+              "objectIndex": 34,
+              "points": 3000
+            }
+          ]
+        },
+        {
+          "playerId": "p5",
+          "roomId": 1,
+          "entries": [
+            {
+              "objectIndex": 9,
+              "points": 200
+            },
+            {
+              "objectIndex": 15,
+              "points": 2000
+            },
+            {
+              "objectIndex": 20,
+              "points": 200
+            },
+            {
+              "objectIndex": 23,
+              "points": 2000
+            },
+            {
+              "objectIndex": 32,
+              "points": 3000
+            },
+            {
+              "objectIndex": 38,
+              "points": 2000
+            },
+            {
+              "objectIndex": 30,
+              "points": 2000
+            },
+            {
+              "objectIndex": 1,
+              "points": 2000
+            }
+          ]
+        },
+        {
+          "playerId": "p4",
+          "roomId": 1,
+          "entries": [
+            {
+              "objectIndex": 13,
+              "points": 100
+            },
+            {
+              "objectIndex": 12,
+              "points": 100
+            },
+            {
+              "objectIndex": 24,
+              "points": 100
+            },
+            {
+              "objectIndex": 32,
+              "points": 3000
+            },
+            {
+              "objectIndex": 31,
+              "points": 3000
+            },
+            {
+              "objectIndex": 17,
+              "points": 200
+            },
+            {
+              "objectIndex": 9,
+              "points": 200
+            }
+          ]
+        }
+      ],
+      "status": "room2",
       "roomCompletion": {
-        "room1": false,
+        "room1": true,
         "room2": false,
         "room3": false
       }
