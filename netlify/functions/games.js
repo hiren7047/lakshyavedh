@@ -1,4 +1,4 @@
-// Netlify Functions API - Simple and Clean
+// Netlify Functions API - Games endpoint
 const fs = require('fs').promises;
 const crypto = require('crypto');
 
@@ -33,10 +33,7 @@ async function writeDB(data) {
 
 // Netlify Functions handler
 exports.handler = async (event, context) => {
-  const { httpMethod, path, body, queryStringParameters, pathParameters } = event;
-  
-  // Extract the actual path from the event
-  const actualPath = pathParameters?.proxy || path;
+  const { httpMethod, body, queryStringParameters } = event;
   
   // CORS headers
   const headers = {
@@ -66,16 +63,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Route handling - use actualPath instead of path
-    if (actualPath === '/api/health' && httpMethod === 'GET') {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ ok: true })
-      };
-    }
-
-    if (actualPath === '/api/games' && httpMethod === 'GET') {
+    // Route handling
+    if (httpMethod === 'GET') {
       const db = await readDB();
       const games = db.games.sort((a, b) => b.createdAt - a.createdAt);
       return {
@@ -85,25 +74,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (actualPath.startsWith('/api/games/') && httpMethod === 'GET') {
-      const gameId = actualPath.split('/')[3];
-      const db = await readDB();
-      const game = db.games.find(g => g.id === gameId);
-      if (!game) {
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ error: 'Game not found' })
-        };
-      }
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(game)
-      };
-    }
-
-    if (actualPath === '/api/games' && httpMethod === 'POST') {
+    if (httpMethod === 'POST') {
       const db = await readDB();
       const game = {
         id: crypto.randomUUID(),
@@ -126,27 +97,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (actualPath.startsWith('/api/games/') && httpMethod === 'PUT') {
-      const gameId = actualPath.split('/')[3];
-      const db = await readDB();
-      const gameIndex = db.games.findIndex(g => g.id === gameId);
-      if (gameIndex === -1) {
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ error: 'Game not found' })
-        };
-      }
-      db.games[gameIndex] = { ...db.games[gameIndex], ...requestBody };
-      await writeDB(db);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(db.games[gameIndex])
-      };
-    }
-
-    if (actualPath === '/api/games' && httpMethod === 'DELETE') {
+    if (httpMethod === 'DELETE') {
       await writeDB({ games: [] });
       return {
         statusCode: 200,
