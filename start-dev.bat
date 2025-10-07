@@ -1,16 +1,33 @@
 @echo off
-echo Starting Target Shooting Game Development Environment...
+echo ========================================
+echo   Target Shooting Game - Development
+echo ========================================
 echo.
 
-echo Installing dependencies...
+echo [1/3] Installing dependencies...
 call npm run install-all
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to install dependencies
+    pause
+    exit /b 1
+)
 
 echo.
-echo Starting development servers...
-echo Frontend will be available at: http://localhost:5173
-echo Backend API will be available at: http://localhost:5000
+echo [2/3] Starting development servers...
+echo.
+echo Frontend: http://localhost:5173
+echo Backend:  http://localhost:5000
+echo.
+echo Test Users:
+echo - Admin: user01
+echo - Fire Room: user02  
+echo - Water Room: user03
+echo - Air Room: user04
 echo.
 
+echo [3/3] Starting servers...
 call npm run dev
 
+echo.
+echo Development servers stopped.
 pause
