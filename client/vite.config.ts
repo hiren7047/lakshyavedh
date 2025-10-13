@@ -13,13 +13,13 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://lakshyavedh-backend.vercel.app/api',
+        target: 'http://localhost:5000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
       }
     }
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify('https://lakshyavedh-backend.vercel.app/api')
+    'import.meta.env.VITE_API_URL': JSON.stringify('http://localhost:5000/api')
   }
 })

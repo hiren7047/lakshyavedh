@@ -1,34 +1,141 @@
 // Netlify Functions API - Games endpoint
-const fs = require('fs').promises;
+const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 
-// Database file path (Netlify uses /tmp for writable storage)
-const DB_FILE = '/tmp/games.json';
+// Database configuration for Netlify
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'u533366727_lakshyavedh',
+  waitForConnections: true,
+  connectionLimit: 5,
+  queueLimit: 0
+};
 
-// Ensure data directory exists
-async function ensureDataDir() {
-  try {
-    await fs.access('/tmp');
-  } catch {
-    await fs.mkdir('/tmp', { recursive: true });
+// Database helper functions
+class NetlifyDatabase {
+  static async getAllGames() {
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      const [games] = await connection.execute(
+        'SELECT * FROM games ORDER BY created_at DESC'
+      );
+
+      const gamesWithData = await Promise.all(
+        games.map(async (game) => {
+          const [players] = await connection.execute(
+            'SELECT player_id as id, name FROM players WHERE game_id = ?',
+            [game.id]
+          );
+
+          const [scores] = await connection.execute(
+            'SELECT player_id, room_id, object_index, points FROM scores WHERE game_id = ? ORDER BY player_id, room_id',
+            [game.id]
+          );
+
+          const scoresByPlayer = {};
+          scores.forEach(score => {
+            if (!scoresByPlayer[score.player_id]) {
+              scoresByPlayer[score.player_id] = {};
+            }
+            if (!scoresByPlayer[score.player_id][score.room_id]) {
+              scoresByPlayer[score.player_id][score.room_id] = [];
+            }
+            scoresByPlayer[score.player_id][score.room_id].push({
+              objectIndex: score.object_index,
+              points: score.points
+            });
+          });
+
+          const scoresArray = Object.keys(scoresByPlayer).map(playerId => ({
+            playerId,
+            roomId: parseInt(Object.keys(scoresByPlayer[playerId])[0]) || 1,
+            entries: Object.values(scoresByPlayer[playerId])[0] || []
+          }));
+
+          return {
+            id: game.id,
+            name: game.name,
+            players: players,
+            createdAt: new Date(game.created_at).getTime(),
+            scores: scoresArray,
+            status: game.status,
+            roomCompletion: {
+              room1: game.room1_completed,
+              room2: game.room2_completed,
+              room3: game.room3_completed
+            }
+          };
+        })
+      );
+
+      return gamesWithData;
+    } finally {
+      await connection.end();
+    }
   }
-}
 
-// Read database from file
-async function readDB() {
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(DB_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return { games: [] };
+  static async createGame(gameData) {
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      await connection.beginTransaction();
+
+      await connection.execute(
+        `INSERT INTO games (id, name, status, room1_completed, room2_completed, room3_completed) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          gameData.id,
+          gameData.name,
+          gameData.status || 'room1',
+          gameData.roomCompletion?.room1 || false,
+          gameData.roomCompletion?.room2 || false,
+          gameData.roomCompletion?.room3 || false
+        ]
+      );
+
+      if (gameData.players && gameData.players.length > 0) {
+        for (const player of gameData.players) {
+          await connection.execute(
+            `INSERT INTO players (id, game_id, player_id, name) 
+             VALUES (UUID(), ?, ?, ?)`,
+            [gameData.id, player.id, player.name]
+          );
+        }
+      }
+
+      if (gameData.scores && gameData.scores.length > 0) {
+        for (const score of gameData.scores) {
+          for (const entry of score.entries || []) {
+            await connection.execute(
+              `INSERT INTO scores (game_id, player_id, room_id, object_index, points) 
+               VALUES (?, ?, ?, ?, ?)`,
+              [gameData.id, score.playerId, score.roomId, entry.objectIndex, entry.points]
+            );
+          }
+        }
+      }
+
+      await connection.commit();
+      return gameData;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      await connection.end();
+    }
   }
-}
 
-// Write database to file
-async function writeDB(data) {
-  await ensureDataDir();
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
+  static async deleteAllGames() {
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      await connection.execute('DELETE FROM games');
+      return { message: 'All games cleared' };
+    } finally {
+      await connection.end();
+    }
+  }
 }
 
 // Netlify Functions handler
@@ -69,8 +176,7 @@ exports.handler = async (event, context) => {
 
     // Route handling
     if (httpMethod === 'GET') {
-      const db = await readDB();
-      const games = db.games.sort((a, b) => b.createdAt - a.createdAt);
+      const games = await NetlifyDatabase.getAllGames();
       console.log('Returning games:', games.length);
       return {
         statusCode: 200,
@@ -80,21 +186,19 @@ exports.handler = async (event, context) => {
     }
 
     if (httpMethod === 'POST') {
-      const db = await readDB();
-      const game = {
+      const gameData = {
         id: crypto.randomUUID(),
         ...requestBody,
         createdAt: Date.now(),
-        scores: [],
-        status: "room1",
-        roomCompletion: {
+        scores: requestBody.scores || [],
+        status: requestBody.status || "room1",
+        roomCompletion: requestBody.roomCompletion || {
           room1: false,
           room2: false,
           room3: false,
         }
       };
-      db.games.push(game);
-      await writeDB(db);
+      const game = await NetlifyDatabase.createGame(gameData);
       console.log('Created game:', game.id);
       return {
         statusCode: 200,
@@ -104,12 +208,12 @@ exports.handler = async (event, context) => {
     }
 
     if (httpMethod === 'DELETE') {
-      await writeDB({ games: [] });
+      const result = await NetlifyDatabase.deleteAllGames();
       console.log('Cleared all games');
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ message: 'All games cleared' })
+        body: JSON.stringify(result)
       };
     }
 

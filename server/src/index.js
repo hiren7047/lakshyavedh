@@ -1,112 +1,99 @@
 const express=require('express');
 const cors=require('cors');
 const path=require('path');
-const fs=require('fs').promises;
 const crypto=require('crypto');
+const Database = require('./database');
+require('dotenv').config();
+
 const app=express();
 app.use(cors());
 app.use(express.json());
 
-// Database file path
-const DB_FILE = path.join(__dirname, '../data/games.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DB_FILE);
+// Health check with database status
+app.get('/api/health', async (req, res) => {
   try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
+    const dbConnected = await Database.testConnection();
+    res.json({ 
+      ok: true, 
+      database: dbConnected ? 'connected' : 'disconnected',
+      storage: dbConnected ? 'mysql' : 'json',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      ok: false, 
+      database: 'error',
+      storage: 'unknown',
+      error: error.message 
+    });
   }
-}
-
-// Read database from file
-async function readDB() {
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(DB_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return { games: [] };
-  }
-}
-
-// Write database to file
-async function writeDB(data) {
-  await ensureDataDir();
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
-}
-
-// Health
-app.get('/api/health',(_,res)=>res.json({ok:true}));
+});
 
 // Database API endpoints
 app.get('/api/games', async (req, res) => {
   try {
-    const db = await readDB();
-    const games = db.games.sort((a, b) => b.createdAt - a.createdAt);
+    const games = await Database.getAllGames();
     res.json(games);
   } catch (error) {
+    console.error('Error fetching games:', error);
     res.status(500).json({ error: 'Failed to read games' });
   }
 });
 
 app.get('/api/games/:id', async (req, res) => {
   try {
-    const db = await readDB();
-    const game = db.games.find(g => g.id === req.params.id);
+    const game = await Database.getGameById(req.params.id);
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
     res.json(game);
   } catch (error) {
+    console.error('Error fetching game:', error);
     res.status(500).json({ error: 'Failed to read game' });
   }
 });
 
 app.post('/api/games', async (req, res) => {
   try {
-    const db = await readDB();
-    const game = {
+    const gameData = {
       id: crypto.randomUUID(),
       ...req.body,
       createdAt: Date.now(),
-      scores: [],
-      status: "room1",
-      roomCompletion: {
+      scores: req.body.scores || [],
+      status: req.body.status || "room1",
+      roomCompletion: req.body.roomCompletion || {
         room1: false,
         room2: false,
         room3: false,
       }
     };
-    db.games.push(game);
-    await writeDB(db);
+    const game = await Database.createGame(gameData);
     res.json(game);
   } catch (error) {
+    console.error('Error creating game:', error);
     res.status(500).json({ error: 'Failed to create game' });
   }
 });
 
 app.put('/api/games/:id', async (req, res) => {
   try {
-    const db = await readDB();
-    const gameIndex = db.games.findIndex(g => g.id === req.params.id);
-    if (gameIndex === -1) {
+    const game = await Database.updateGame(req.params.id, req.body);
+    if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
-    db.games[gameIndex] = { ...db.games[gameIndex], ...req.body };
-    await writeDB(db);
-    res.json(db.games[gameIndex]);
+    res.json(game);
   } catch (error) {
+    console.error('Error updating game:', error);
     res.status(500).json({ error: 'Failed to update game' });
   }
 });
 
 app.delete('/api/games', async (req, res) => {
   try {
-    await writeDB({ games: [] });
-    res.json({ message: 'All games cleared' });
+    const result = await Database.deleteAllGames();
+    res.json(result);
   } catch (error) {
+    console.error('Error clearing games:', error);
     res.status(500).json({ error: 'Failed to clear games' });
   }
 });

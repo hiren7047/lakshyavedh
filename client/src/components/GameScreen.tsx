@@ -138,6 +138,10 @@ export default function GameScreen() {
   const [loading, setLoading] = useState(true);
   const currentUser = useAuthStore((s) => s.currentUser);
   const [refresh, setRefresh] = useState(0);
+  
+  // Local state for fast entry (not saved to DB until Complete Room)
+  const [localSelections, setLocalSelections] = useState<{[playerId: string]: number[]}>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     async function loadGame() {
@@ -145,6 +149,9 @@ export default function GameScreen() {
       try {
         const gameData = await apiRequest(`/games/${gameId}`);
         setGame(gameData || null);
+        // Reset local selections when game loads
+        setLocalSelections({});
+        setHasUnsavedChanges(false);
       } catch (error) {
         console.error('Failed to load game:', error);
       } finally {
@@ -180,62 +187,125 @@ export default function GameScreen() {
   if (!game) return <p>Game not found</p>;
   if (!currentUser) return <p>Please login</p>;
 
-  async function addEntry(playerId: string, objectIndex: number) {
+  // Fast entry - only updates local state, not saved to DB
+  function addEntry(playerId: string, objectIndex: number) {
     if (!currentRoom || !canAccessCurrentRoom || !game) return;
     if (!isUserAdmin && userRoomAccess !== currentRoom) return;
 
-    const entry = { objectIndex, points: POINTS[objectIndex - 1] };
-    const scoresForPlayer = game.scores.find(
-      (s) => s.playerId === playerId && s.roomId === currentRoom
-    );
-    if (scoresForPlayer) {
-      const exists = scoresForPlayer.entries.some((e) => e.objectIndex === objectIndex);
-      if (!exists) scoresForPlayer.entries.push(entry);
-    } else {
-      game.scores.push({ playerId, roomId: currentRoom, entries: [entry] });
+    setLocalSelections(prev => {
+      const playerSelections = prev[playerId] || [];
+      if (!playerSelections.includes(objectIndex)) {
+        const newSelections = { ...prev };
+        newSelections[playerId] = [...playerSelections, objectIndex];
+        setHasUnsavedChanges(true);
+        return newSelections;
+      }
+      return prev;
+    });
+  }
+
+  // Check if an object is selected (either in local state or saved in game)
+  function isObjectSelected(playerId: string, objectIndex: number): boolean {
+    // Check local selections first
+    if (localSelections[playerId]?.includes(objectIndex)) {
+      return true;
     }
     
-    try {
-      await apiRequest(`/games/${game.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(game),
-      });
-      setRefresh((n) => n + 1);
-    } catch (error) {
-      console.error('Failed to save game:', error);
-      alert('Failed to save entry. Please try again.');
-    }
+    // Check saved game data
+    if (!game || !currentRoom) return false;
+    return game.scores.some(
+      (s) =>
+        s.playerId === playerId &&
+        currentRoom === s.roomId &&
+        s.entries.some((e) => e.objectIndex === objectIndex)
+    );
   }
 
   function totalFor(playerId: string, roomId?: RoomId) {
     if (!game) return 0;
+    
+    // Calculate saved points
     const relevant = game.scores.filter(
       (s) => s.playerId === playerId && (!roomId || s.roomId === roomId)
     );
-    return relevant.reduce(
+    let savedPoints = relevant.reduce(
       (sum, s) => sum + s.entries.reduce((a, b) => a + b.points, 0),
       0
     );
+    
+    // Add local selections points if they're for the current room
+    if (roomId === currentRoom && localSelections[playerId]) {
+      const localPoints = localSelections[playerId].reduce(
+        (sum, objectIndex) => sum + POINTS[objectIndex - 1], 0
+      );
+      savedPoints += localPoints;
+    }
+    
+    return savedPoints;
   }
 
   async function completeRoom() {
     if (!currentRoom || !canAccessCurrentRoom || !game) return;
     if (!isUserAdmin && userRoomAccess !== currentRoom) return;
 
-    const roomCompletion = game.roomCompletion || { room1: false, room2: false, room3: false };
-    roomCompletion[`room${currentRoom}` as keyof typeof roomCompletion] = true;
-    game.roomCompletion = roomCompletion;
-
-    if (game.status === "room1") game.status = "room2";
-    else if (game.status === "room2") game.status = "room3";
-    else game.status = "completed";
-
     try {
-      await apiRequest(`/games/${game.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(game),
+      // First, save all local selections to the game
+      const updatedGame = { ...game };
+      
+      // Add local selections to game scores
+      Object.keys(localSelections).forEach(playerId => {
+        const selections = localSelections[playerId];
+        if (selections.length > 0) {
+          const scoresForPlayer = updatedGame.scores.find(
+            (s) => s.playerId === playerId && s.roomId === currentRoom
+          );
+          
+          if (scoresForPlayer) {
+            // Add new entries to existing scores
+            selections.forEach(objectIndex => {
+              const exists = scoresForPlayer.entries.some((e) => e.objectIndex === objectIndex);
+              if (!exists) {
+                scoresForPlayer.entries.push({ 
+                  objectIndex, 
+                  points: POINTS[objectIndex - 1] 
+                });
+              }
+            });
+          } else {
+            // Create new score entry
+            updatedGame.scores.push({ 
+              playerId, 
+              roomId: currentRoom, 
+              entries: selections.map(objectIndex => ({
+                objectIndex, 
+                points: POINTS[objectIndex - 1]
+              }))
+            });
+          }
+        }
       });
+
+      // Update room completion status
+      const roomCompletion = updatedGame.roomCompletion || { room1: false, room2: false, room3: false };
+      roomCompletion[`room${currentRoom}` as keyof typeof roomCompletion] = true;
+      updatedGame.roomCompletion = roomCompletion;
+
+      // Move to next room
+      if (updatedGame.status === "room1") updatedGame.status = "room2";
+      else if (updatedGame.status === "room2") updatedGame.status = "room3";
+      else updatedGame.status = "completed";
+
+      // Save to database
+      await apiRequest(`/games/${updatedGame.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updatedGame),
+      });
+
+      // Clear local selections and refresh
+      setLocalSelections({});
+      setHasUnsavedChanges(false);
       setRefresh((n) => n + 1);
+      
     } catch (error) {
       console.error('Failed to complete room:', error);
       alert('Failed to complete room. Please try again.');
@@ -322,17 +392,27 @@ export default function GameScreen() {
               {isUserAdmin ? `${roomTitle(game.status)} - Admin View` : `${roomTitle(game.status)} - Target Entry`}
             </h2>
             {canSubmitRoom && (
-              <button 
-                onClick={completeRoom} 
-                disabled={isCurrentRoomLocked}
-                className={`inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl px-6 py-3 text-base text-white ${
-                  currentRoomTheme === 'fire' ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700' :
-                  currentRoomTheme === 'water' ? 'bg-gradient-to-r from-blue-400 to-cyan-600 hover:from-blue-500 hover:to-cyan-700' :
-                  'bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600'
-                }`}
-              >
-                {isCurrentRoomLocked ? "Room Completed" : "Complete Room & Next"}
-              </button>
+              <div className="flex items-center gap-3">
+                {hasUnsavedChanges && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <span className="text-yellow-800 text-sm font-medium">
+                      {Object.values(localSelections).reduce((total, selections) => total + selections.length, 0)} unsaved selections
+                    </span>
+                  </div>
+                )}
+                <button 
+                  onClick={completeRoom} 
+                  disabled={isCurrentRoomLocked}
+                  className={`inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl px-6 py-3 text-base text-white ${
+                    currentRoomTheme === 'fire' ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700' :
+                    currentRoomTheme === 'water' ? 'bg-gradient-to-r from-blue-400 to-cyan-600 hover:from-blue-500 hover:to-cyan-700' :
+                    'bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600'
+                  }`}
+                >
+                  {isCurrentRoomLocked ? "Room Completed" : "Complete Room & Next"}
+                </button>
+              </div>
             )}
           </div>
 
@@ -359,12 +439,7 @@ export default function GameScreen() {
                     <div className="flex flex-wrap gap-1 justify-center p-3 bg-gray-50 rounded-lg">
                       {Array.from({ length: maxObjects }).map((_, i) => {
                         const idx = i + 1;
-                        const has = game.scores.some(
-                          (s) =>
-                            s.playerId === player.id &&
-                            currentRoom === s.roomId &&
-                            s.entries.some((e) => e.objectIndex === idx)
-                        );
+                        const has = isObjectSelected(player.id, idx);
                         return (
                           <ObjectButton
                             key={idx}
