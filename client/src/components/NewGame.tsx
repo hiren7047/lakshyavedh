@@ -43,6 +43,8 @@ export default function NewGame() {
     "Player 4",
     "Player 5",
   ]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [creationProgress, setCreationProgress] = useState(0);
 
   // Only admin can create games
   if (!isUserAdmin) {
@@ -60,22 +62,47 @@ export default function NewGame() {
   }
 
   async function create() {
+    setIsCreating(true);
+    setCreationProgress(10);
+    
     try {
+      setCreationProgress(30);
       const playerObjs: Player[] = players.map((p, i) => ({
         id: `p${i + 1}`,
         name: p || `Player ${i + 1}`,
       }));
-      const game = await apiRequest('/games', {
+      
+      setCreationProgress(50);
+      
+      // Create game with timeout
+      const createPromise = apiRequest('/games', {
         method: 'POST',
         body: JSON.stringify({
           name,
           players: playerObjs,
         }),
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 8000)
+      );
+      
+      const game = await Promise.race([createPromise, timeoutPromise]);
+      setCreationProgress(80);
+      
+      setCreationProgress(100);
       navigate(`/dashboard/games/${game.id}`);
+      
     } catch (error) {
       console.error('Failed to create game:', error);
-      alert('Failed to create game. Please try again.');
+      if (error.message === 'Request timeout') {
+        alert('Game creation is taking too long. Please check your connection and try again.');
+      } else {
+        alert('Failed to create game. Please try again.');
+      }
+    } finally {
+      setIsCreating(false);
+      setCreationProgress(0);
     }
   }
 
@@ -127,12 +154,31 @@ export default function NewGame() {
           <div className="flex gap-4 justify-center pt-6">
             <button 
               onClick={create} 
+              disabled={isCreating}
               className="inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl px-8 py-4 text-lg bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700"
             >
-              🔥 Create Target Shooting Game
+              {isCreating ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  <div className="flex flex-col items-center">
+                    <span>Creating Game...</span>
+                    <div className="w-20 h-1 bg-white/30 rounded-full mt-1">
+                      <div 
+                        className="h-1 bg-white rounded-full transition-all duration-300"
+                        style={{ width: `${creationProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  🔥 Create Target Shooting Game
+                </>
+              )}
             </button>
             <button 
               onClick={() => navigate("/dashboard/games")}
+              disabled={isCreating}
               className="inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl px-8 py-4 text-lg bg-gradient-to-r from-gray-100 to-gray-200 text-gray-900 hover:from-gray-200 hover:to-gray-300"
             >
               Cancel
