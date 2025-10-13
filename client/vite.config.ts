@@ -20,6 +20,6 @@ export default defineConfig({
     }
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify('http://localhost:5000/api')
+    'import.meta.env.VITE_API_URL': JSON.stringify('https://lakshyavedh.onrender.com/api')
   }
 })
