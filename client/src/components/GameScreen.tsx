@@ -142,6 +142,7 @@ export default function GameScreen() {
   // Local state for fast entry (not saved to DB until Complete Room)
   const [localSelections, setLocalSelections] = useState<{[playerId: string]: number[]}>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isCompletingRoom, setIsCompletingRoom] = useState(false);
 
   useEffect(() => {
     async function loadGame() {
@@ -248,6 +249,7 @@ export default function GameScreen() {
     if (!currentRoom || !canAccessCurrentRoom || !game) return;
     if (!isUserAdmin && userRoomAccess !== currentRoom) return;
 
+    setIsCompletingRoom(true);
     try {
       // First, save all local selections to the game
       const updatedGame = { ...game };
@@ -309,6 +311,8 @@ export default function GameScreen() {
     } catch (error) {
       console.error('Failed to complete room:', error);
       alert('Failed to complete room. Please try again.');
+    } finally {
+      setIsCompletingRoom(false);
     }
   }
 
@@ -403,14 +407,23 @@ export default function GameScreen() {
                 )}
                 <button 
                   onClick={completeRoom} 
-                  disabled={isCurrentRoomLocked}
+                  disabled={isCurrentRoomLocked || isCompletingRoom}
                   className={`inline-flex items-center justify-center rounded-xl font-medium transition-all duration-300 focus:outline-none disabled:opacity-50 disabled:pointer-events-none transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl px-6 py-3 text-base text-white ${
                     currentRoomTheme === 'fire' ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700' :
                     currentRoomTheme === 'water' ? 'bg-gradient-to-r from-blue-400 to-cyan-600 hover:from-blue-500 hover:to-cyan-700' :
                     'bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600'
                   }`}
                 >
-                  {isCurrentRoomLocked ? "Room Completed" : "Complete Room & Next"}
+                  {isCompletingRoom ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Completing Room...
+                    </>
+                  ) : isCurrentRoomLocked ? (
+                    "Room Completed"
+                  ) : (
+                    "Complete Room & Next"
+                  )}
                 </button>
               </div>
             )}
@@ -446,7 +459,7 @@ export default function GameScreen() {
                             objectIndex={idx}
                             isSelected={has}
                             onClick={() => addEntry(player.id, idx)}
-                            disabled={isCurrentRoomLocked}
+                            disabled={isCurrentRoomLocked || isCompletingRoom}
                             roomTheme={currentRoomTheme}
                           />
                         );
