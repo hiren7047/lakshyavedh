@@ -323,15 +323,21 @@ class Database {
           // Delete existing scores
           await connection.execute('DELETE FROM scores WHERE game_id = ?', [gameId]);
           
-          // Insert new scores
+          // Batch insert all scores for better performance
+          const scoreInserts = [];
           for (const score of updateData.scores) {
             for (const entry of score.entries || []) {
-              await connection.execute(
-                `INSERT INTO scores (game_id, player_id, room_id, object_index, points) 
-                 VALUES (?, ?, ?, ?, ?)`,
-                [gameId, score.playerId, score.roomId, entry.objectIndex, entry.points]
-              );
+              scoreInserts.push([gameId, score.playerId, score.roomId, entry.objectIndex, entry.points]);
             }
+          }
+          
+          if (scoreInserts.length > 0) {
+            // Use batch insert for better performance
+            await connection.execute(
+              `INSERT INTO scores (game_id, player_id, room_id, object_index, points) 
+               VALUES ${scoreInserts.map(() => '(?, ?, ?, ?, ?)').join(', ')}`,
+              scoreInserts.flat()
+            );
           }
         }
 

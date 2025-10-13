@@ -143,6 +143,7 @@ export default function GameScreen() {
   const [localSelections, setLocalSelections] = useState<{[playerId: string]: number[]}>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isCompletingRoom, setIsCompletingRoom] = useState(false);
+  const [completionProgress, setCompletionProgress] = useState(0);
 
   useEffect(() => {
     async function loadGame() {
@@ -250,8 +251,11 @@ export default function GameScreen() {
     if (!isUserAdmin && userRoomAccess !== currentRoom) return;
 
     setIsCompletingRoom(true);
+    setCompletionProgress(10);
+    
     try {
       // First, save all local selections to the game
+      setCompletionProgress(30);
       const updatedGame = { ...game };
       
       // Add local selections to game scores
@@ -297,22 +301,37 @@ export default function GameScreen() {
       else if (updatedGame.status === "room2") updatedGame.status = "room3";
       else updatedGame.status = "completed";
 
-      // Save to database
-      await apiRequest(`/games/${updatedGame.id}`, {
+      setCompletionProgress(60);
+      
+      // Save to database with timeout
+      const savePromise = apiRequest(`/games/${updatedGame.id}`, {
         method: 'PUT',
         body: JSON.stringify(updatedGame),
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+      
+      await Promise.race([savePromise, timeoutPromise]);
+      setCompletionProgress(90);
 
       // Clear local selections and refresh
+      setCompletionProgress(100);
       setLocalSelections({});
       setHasUnsavedChanges(false);
       setRefresh((n) => n + 1);
       
     } catch (error) {
       console.error('Failed to complete room:', error);
-      alert('Failed to complete room. Please try again.');
+      if (error.message === 'Request timeout') {
+        alert('Request is taking too long. Please check your connection and try again.');
+      } else {
+        alert('Failed to complete room. Please try again.');
+      }
     } finally {
       setIsCompletingRoom(false);
+      setCompletionProgress(0);
     }
   }
 
@@ -417,7 +436,15 @@ export default function GameScreen() {
                   {isCompletingRoom ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Completing Room...
+                      <div className="flex flex-col items-center">
+                        <span>Completing Room...</span>
+                        <div className="w-16 h-1 bg-white/30 rounded-full mt-1">
+                          <div 
+                            className="h-1 bg-white rounded-full transition-all duration-300"
+                            style={{ width: `${completionProgress}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </>
                   ) : isCurrentRoomLocked ? (
                     "Room Completed"
