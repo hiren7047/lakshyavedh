@@ -6,7 +6,21 @@ const Database = require('./database');
 require('dotenv').config();
 
 const app=express();
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'https://lakshyavedh.vercel.app',
+    'https://lakshyavedh.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check with database status
